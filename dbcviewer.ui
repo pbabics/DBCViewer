@@ -56,6 +56,12 @@
       <property name="dragDropOverwriteMode">
        <bool>false</bool>
       </property>
+      <property name="selectionMode">
+       <enum>QAbstractItemView::SingleSelection</enum>
+      </property>
+      <property name="selectionBehavior">
+       <enum>QAbstractItemView::SelectRows</enum>
+      </property>
       <property name="rowCount">
        <number>0</number>
       </property>
@@ -69,7 +75,7 @@
        <bool>false</bool>
       </attribute>
       <attribute name="verticalHeaderHighlightSections">
-       <bool>true</bool>
+       <bool>false</bool>
       </attribute>
       <column>
        <property name="text">
