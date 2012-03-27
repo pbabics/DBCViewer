@@ -114,9 +114,25 @@
     </property>
     <addaction name="actionOpen"/>
     <addaction name="separator"/>
+    <addaction name="actionReload"/>
+    <addaction name="separator"/>
     <addaction name="actionQuit"/>
    </widget>
+   <widget class="QMenu" name="menuView">
+    <property name="title">
+     <string>View</string>
+    </property>
+    <widget class="QMenu" name="menuGet_Format_String">
+     <property name="title">
+      <string>Get Format String</string>
+     </property>
+     <addaction name="actionGet"/>
+     <addaction name="actionSet"/>
+    </widget>
+    <addaction name="menuGet_Format_String"/>
+   </widget>
    <addaction name="menuFile"/>
+   <addaction name="menuView"/>
   </widget>
   <widget class="QToolBar" name="mainToolBar">
    <attribute name="toolBarArea">
@@ -139,6 +155,21 @@
   <action name="actionQuit">
    <property name="text">
     <string>Quit</string>
+   </property>
+  </action>
+  <action name="actionGet">
+   <property name="text">
+    <string>Get</string>
+   </property>
+  </action>
+  <action name="actionSet">
+   <property name="text">
+    <string>Set</string>
+   </property>
+  </action>
+  <action name="actionReload">
+   <property name="text">
+    <string>Reload</string>
    </property>
   </action>
  </widget>
