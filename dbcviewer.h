@@ -4,6 +4,7 @@
 #include <QMainWindow>
 #include <QMessageBox>
 #include <QFileDialog>
+#include <QTableWidgetItem>
 #include <QInputDialog>
 #include <QFile>
 #include <cmath>
@@ -35,6 +36,8 @@ private slots:
     void on_actionSet_triggered();
 
     void on_actionReload_triggered();
+
+    void on_searchButton_clicked();
 
 private:
     Ui::DBCViewer *ui;

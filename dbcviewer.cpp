@@ -21,6 +21,8 @@ void DBCViewer::on_actionQuit_triggered()
 void DBCViewer::on_actionOpen_triggered()
 {
     QString file = QFileDialog::getOpenFileName(this, "Please select DBC file", "./", "*.dbc");
+    if (!file.trimmed().size())
+        return;
     ui->statusBar->showMessage("Loading... " + file);
     LoadIntoTable(file);
 }
@@ -74,6 +76,11 @@ void DBCViewer::LoadIntoTable(QString file)
 
     for (int i = ui->tableWidget->rowCount(); i > records; --i)
         ui->tableWidget->removeRow(ui->tableWidget->rowCount() - 1);
+
+    ui->searchColumn->clear();
+    ui->searchColumn->insertItem(ui->searchColumn->count(), "Id");
+    for (int i = ui->searchColumn->count(); i < ui->tableWidget->columnCount(); ++i)
+        ui->searchColumn->insertItem(ui->searchColumn->count(), "Column " + QString::number(i + 1));
 
     int* table = new int[records * recordSize];
 
@@ -196,6 +203,10 @@ void DBCViewer::ReloadIntoTable()
     for (int i = ui->tableWidget->rowCount(); i > records; --i)
         ui->tableWidget->removeRow(ui->tableWidget->rowCount() - 1);
 
+    ui->searchColumn->clear();
+    ui->searchColumn->insertItem(ui->searchColumn->count(), "Id");
+    for (int i = ui->searchColumn->count(); i < ui->tableWidget->columnCount(); ++i)
+        ui->searchColumn->insertItem(ui->searchColumn->count(), "Column " + QString::number(i + 1));
 
     int* table = new int[records * recordSize];
 
@@ -270,4 +281,39 @@ void DBCViewer::on_actionSet_triggered()
 void DBCViewer::on_actionReload_triggered()
 {
     ReloadIntoTable();
+}
+
+void DBCViewer::on_searchButton_clicked()
+{
+    if (!ui->searchContent->text().trimmed().size())
+        return;
+    for (int i = ui->tableWidget->currentRow() + 1; i < ui->tableWidget->rowCount(); ++i)
+        if (QTableWidgetItem* item = ui->tableWidget->item(i, ui->searchColumn->currentIndex()))
+            if (item->text() == ui->searchContent->text())
+            {
+                ui->tableWidget->setCurrentItem(item);
+                return;
+            }
+    if (ui->tableWidget->currentRow())
+    {
+        QMessageBox msg;
+        msg.setText("Searched value was not found in column " + QString::number(ui->searchColumn->currentIndex()) + ".\nContinue from begining ?");
+        msg.addButton(QMessageBox::Ok);
+        msg.addButton(QMessageBox::Cancel);
+        int result = msg.exec();
+        if (result == QMessageBox::Ok)
+        {
+            int continueUntil = ui->tableWidget->currentRow() + 1;
+            for (int i = 0; i < continueUntil; ++i)
+                if (QTableWidgetItem* item = ui->tableWidget->item(i, ui->searchColumn->currentIndex()))
+                    if (item->text() == ui->searchContent->text())
+                    {
+                        ui->tableWidget->setCurrentItem(item);
+                        return;
+                    }
+        }
+        else
+            return;
+    }
+    QMessageBox::information(this, "Not found", "Searched value not found");
 }
