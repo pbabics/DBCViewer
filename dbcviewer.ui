@@ -206,7 +206,14 @@
     <property name="title">
      <string>File</string>
     </property>
-    <addaction name="actionOpen"/>
+    <widget class="QMenu" name="menuOpen">
+     <property name="title">
+      <string>Open</string>
+     </property>
+     <addaction name="actionAutomatic_Field_Detection"/>
+     <addaction name="actionManual_Field_Setup"/>
+    </widget>
+    <addaction name="menuOpen"/>
     <addaction name="separator"/>
     <addaction name="actionReload"/>
     <addaction name="separator"/>
@@ -242,11 +249,6 @@
     <bool>true</bool>
    </property>
   </widget>
-  <action name="actionOpen">
-   <property name="text">
-    <string>Open</string>
-   </property>
-  </action>
   <action name="actionQuit">
    <property name="text">
     <string>Quit</string>
@@ -265,6 +267,16 @@
   <action name="actionReload">
    <property name="text">
     <string>Reload</string>
+   </property>
+  </action>
+  <action name="actionAutomatic_Field_Detection">
+   <property name="text">
+    <string>Automaticaly detec field types</string>
+   </property>
+  </action>
+  <action name="actionManual_Field_Setup">
+   <property name="text">
+    <string>Manual Field Setup</string>
    </property>
   </action>
  </widget>

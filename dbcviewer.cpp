@@ -3,7 +3,9 @@
 
 DBCViewer::DBCViewer(QWidget *parent) :
     QMainWindow(parent),
-    ui(new Ui::DBCViewer)
+    ui(new Ui::DBCViewer),
+    lastFile("./"),
+    fileInfo(QApplication::applicationFilePath())
 {
     ui->setupUi(this);
 }
@@ -18,16 +20,7 @@ void DBCViewer::on_actionQuit_triggered()
     QApplication::quit();
 }
 
-void DBCViewer::on_actionOpen_triggered()
-{
-    QString file = QFileDialog::getOpenFileName(this, "Please select DBC file", "./", "*.dbc");
-    if (!file.trimmed().size())
-        return;
-    ui->statusBar->showMessage("Loading... " + file);
-    LoadIntoTable(file);
-}
-
-void DBCViewer::LoadIntoTable(QString file)
+void DBCViewer::LoadIntoTable(QString file, QString format)
 {
     if (loader.isOpen())
         loader.close();
@@ -59,7 +52,7 @@ void DBCViewer::LoadIntoTable(QString file)
         return;
     }
     lastFile = file;
-
+    fileInfo = QFileInfo(file);
     stream >> records;
     stream >> fields;
     stream >> recordSize;
@@ -88,41 +81,56 @@ void DBCViewer::LoadIntoTable(QString file)
     {
         stream.readRawData((char*)(table + i * recordSize), recordSize);
     }
-
+    quint64 loadBegin = QDateTime::currentMSecsSinceEpoch();
     char* strings = new char[stringsSize];
     stream.readRawData(strings, stringsSize);
-
+    printf("Loaded in: %llu ms\n", QDateTime::currentMSecsSinceEpoch() - loadBegin);
     ui->tableWidget->setUpdatesEnabled(false);
 
-    fieldTypes= QString(fields, 's');
-    fieldTypes[0] = 'n';
 
-    for (register int i = 0; i < records; ++i)
+    if (format.length() == fields)
+        fieldTypes = format;
+    else
     {
-        for (register int b = 1; b < fields; ++b)
+        loadBegin = QDateTime::currentMSecsSinceEpoch();
+        fieldTypes= QString(fields, 's');
+        fieldTypes[0] = 'n';
+
+        for (register int i = 0; i < 50; ++i)
         {
-            if (table[i * recordSize + b] > 0 &&
-                table[i * recordSize + b] < stringsSize  &&
-                *(strings + table[i * recordSize + b] - 1) == 0 &&
-                *(strings + table[i * recordSize + b]) >= 'A' &&
-                *(strings + table[i * recordSize + b]) <= 'z' &&
-                fieldTypes[b] == 's')
-                fieldTypes[b] = 's';
-            else
+            for (register int b = 1; b < fields; ++b)
             {
-                if (*(float*)(table + i * recordSize + b) - int(*(float*)(table + i * recordSize + b)) != 0 && log10(table[i * recordSize + b]) > 6)
-                    fieldTypes[b] = 'f';
+                if (table[i * recordSize + b] > 0 &&
+                    table[i * recordSize + b] < stringsSize  &&
+                    *(strings + table[i * recordSize + b] - 1) == 0 &&
+                    *(strings + table[i * recordSize + b]) >= 'A' &&
+                    *(strings + table[i * recordSize + b]) <= 'z' &&
+                    fieldTypes[b] == 's')
+                    fieldTypes[b] = 's';
                 else
-                    fieldTypes[b] = 'i';
+                {
+                    if (*(float*)(table + i * recordSize + b) - int(*(float*)(table + i * recordSize + b)) != 0 && log10(table[i * recordSize + b]) > 6)
+                        fieldTypes[b] = 'f';
+                    else
+                        fieldTypes[b] = 'i';
+                }
             }
         }
+        printf("Automatic Detection finished in: %llu ms\n", QDateTime::currentMSecsSinceEpoch() - loadBegin);
     }
 
+    loadBegin = QDateTime::currentMSecsSinceEpoch();
     for (register int i = 0; i < records; ++i)
     {
         for (register int b = 0; b < fields; ++b)
         {
-            QTableWidgetItem* item = new QTableWidgetItem();
+            QTableWidgetItem* item = ui->tableWidget->item(i, b);
+            bool created = false;
+            if (!item)
+            {
+                item = new QTableWidgetItem();
+                created = true;
+            }
             switch (fieldTypes[b].toAscii())
             {
                 case 's': // strings;
@@ -135,14 +143,16 @@ void DBCViewer::LoadIntoTable(QString file)
                 case 'f': // float
                     item->setText(QString::number(*(float*)(table + i * recordSize + b)));
                     break;
-                case 'x': // float
+                case 'x': //
                     break;
             }
-            ui->tableWidget->setItem(i, b, item);
+            if (created)
+                ui->tableWidget->setItem(i, b, item);
         }
     }
+    printf("Inserting data into table finished in: %llu ms\n", QDateTime::currentMSecsSinceEpoch() - loadBegin);
     ui->tableWidget->setUpdatesEnabled(true);
-    ui->statusBar->showMessage("File Loaded");
+    ui->statusBar->showMessage(QString("Loaded ")+QString::number(records)+" rows");
     loader.close();
     delete [] table;
     delete [] strings;
@@ -190,6 +200,7 @@ void DBCViewer::ReloadIntoTable()
     stream >> fields;
     stream >> recordSize;
     stream >> stringsSize;
+    fileInfo = QFileInfo(lastFile);
 
     for (int i = ui->tableWidget->columnCount(); i < fields; ++i)
         ui->tableWidget->insertColumn(ui->tableWidget->columnCount());
@@ -224,7 +235,13 @@ void DBCViewer::ReloadIntoTable()
     {
         for (register int b = 0; b < fields; ++b)
         {
-            QTableWidgetItem* item = new QTableWidgetItem();
+            QTableWidgetItem* item = ui->tableWidget->item(i, b);
+            bool created = false;
+            if (!item)
+            {
+                item = new QTableWidgetItem();
+                created = true;
+            }
             switch (fieldTypes[b].toAscii())
             {
                 case 's': // strings;
@@ -237,10 +254,11 @@ void DBCViewer::ReloadIntoTable()
                 case 'f': // float
                     item->setText(QString::number(*(float*)(table + i * recordSize + b)));
                     break;
-                case 'x': // float
+                case 'x': //
                     break;
             }
-            ui->tableWidget->setItem(i, b, item);
+            if (created)
+                ui->tableWidget->setItem(i, b, item);
         }
     }
     ui->tableWidget->setUpdatesEnabled(true);
@@ -316,4 +334,23 @@ void DBCViewer::on_searchButton_clicked()
             return;
     }
     QMessageBox::information(this, "Not found", "Searched value not found");
+}
+
+void DBCViewer::on_actionAutomatic_Field_Detection_triggered()
+{
+    QString file = QFileDialog::getOpenFileName(this, "Please select DBC file", fileInfo.filePath(), "*.dbc");
+    if (!file.trimmed().size())
+        return;
+    ui->statusBar->showMessage("Loading... " + file);
+    LoadIntoTable(file, "");
+}
+
+void DBCViewer::on_actionManual_Field_Setup_triggered()
+{
+    QString file = QFileDialog::getOpenFileName(this, "Please select DBC file", fileInfo.filePath(), "*.dbc");
+    if (!file.trimmed().size())
+        return;
+    QString input = QInputDialog::getText(this, "Set Format String", "Enter Format String :");
+    ui->statusBar->showMessage("Loading... " + file);
+    LoadIntoTable(file, input);
 }

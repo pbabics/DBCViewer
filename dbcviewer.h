@@ -6,6 +6,8 @@
 #include <QFileDialog>
 #include <QTableWidgetItem>
 #include <QInputDialog>
+#include <QDateTime>
+#include <QFileInfo>
 #include <QFile>
 #include <cmath>
 
@@ -24,9 +26,7 @@ public:
 private slots:
     void on_actionQuit_triggered();
 
-    void on_actionOpen_triggered();
-
-    void LoadIntoTable(QString file);
+    void LoadIntoTable(QString file, QString format);
     void ReloadIntoTable();
 
     void on_tableWidget_currentCellChanged(int currentRow, int currentColumn, int previousRow, int previousColumn);
@@ -39,11 +39,16 @@ private slots:
 
     void on_searchButton_clicked();
 
+    void on_actionAutomatic_Field_Detection_triggered();
+
+    void on_actionManual_Field_Setup_triggered();
+
 private:
     Ui::DBCViewer *ui;
     QString lastFile;
     QString fieldTypes;
     QFile loader;
+    QFileInfo fileInfo;
 };
 
 #endif // DBCVIEWER_H
