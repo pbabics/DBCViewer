@@ -287,12 +287,12 @@
   </action>
   <action name="actionAutomatic_Field_Detection">
    <property name="text">
-    <string>Automatic field Detection</string>
+    <string>Automatic field detection</string>
    </property>
   </action>
   <action name="actionManual_Field_Setup">
    <property name="text">
-    <string>Manual field Setup</string>
+    <string>Manual field setup</string>
    </property>
   </action>
   <action name="actionExport_To_SQL">
@@ -307,7 +307,7 @@
   </action>
   <action name="actionManual_field_Setup">
    <property name="text">
-    <string>Manual field Setup</string>
+    <string>Manual field setup</string>
    </property>
   </action>
   <action name="actionFile_Statistics">

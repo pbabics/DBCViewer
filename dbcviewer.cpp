@@ -79,17 +79,8 @@ void DBCViewer::LoadDBCIntoTable(QString file, QString format)
     dbFileInfo.StringSize = stringsSize;
 
     printf("File: '%s'  Records: %d  fields: %d  recordSize: %d  stringsSize: %d\n", file.toAscii().constData(), records, fields, recordSize, stringsSize);
-    for (int i = ui->tableWidget->columnCount(); i < fields; ++i)
-        ui->tableWidget->insertColumn(ui->tableWidget->columnCount());
-
-    for (int i = ui->tableWidget->rowCount(); i < records; ++i)
-        ui->tableWidget->insertRow(ui->tableWidget->rowCount());
-
-    for (int i = ui->tableWidget->columnCount(); i > fields; --i)
-        ui->tableWidget->removeColumn(ui->tableWidget->columnCount() - 1);
-
-    for (int i = ui->tableWidget->rowCount(); i > records; --i)
-        ui->tableWidget->removeRow(ui->tableWidget->rowCount() - 1);
+    ui->tableWidget->setColumnCount(fields);
+    ui->tableWidget->setRowCount(records);
 
     ui->searchColumn->clear();
     ui->searchColumn->insertItem(ui->searchColumn->count(), "Id");
@@ -108,6 +99,7 @@ void DBCViewer::LoadDBCIntoTable(QString file, QString format)
     printf("Loaded in: %llu ms\n", QDateTime::currentMSecsSinceEpoch() - loadBegin);
     ui->tableWidget->setUpdatesEnabled(false);
 
+    int stringFieldError = -1;
 
     if (format.length() == fields)
         fieldTypes = format;
@@ -137,6 +129,14 @@ void DBCViewer::LoadDBCIntoTable(QString file, QString format)
                 }
             }
         }
+        for (register int b = 1; b < fields; ++b)
+            if (fieldTypes[b] == 's')
+                for (register int i = 0; i < records; ++i)
+                    if (table[i * recordSize + b] > stringsSize)
+                    {
+                        fieldTypes[b] = 'i';
+                        break;
+                    }
         printf("Automatic Detection finished in: %llu ms\n", QDateTime::currentMSecsSinceEpoch() - loadBegin);
     }
 
@@ -155,7 +155,10 @@ void DBCViewer::LoadDBCIntoTable(QString file, QString format)
             switch (fieldTypes[b].toAscii())
             {
                 case 's': // strings;
-                    item->setText(QString(strings + table[i * recordSize + b]));
+                    if (table[i * recordSize + b] <= stringsSize)
+                        item->setText(QString(strings + table[i * recordSize + b]));
+                    else
+                        stringFieldError = b;
                     break;
                 case 'n': // index
                 case 'i': // ints
@@ -175,6 +178,10 @@ void DBCViewer::LoadDBCIntoTable(QString file, QString format)
     ui->tableWidget->setUpdatesEnabled(true);
     ui->statusBar->showMessage(QString("Loaded ")+QString::number(records)+" rows");
     loader.close();
+
+    if (stringFieldError > 0)
+        QMessageBox::information(this, "Mistaken field", "Field " + QString::number(stringFieldError) + " was set as string but it points over the strings data");
+
     delete [] table;
     delete [] strings;
 }
@@ -204,7 +211,7 @@ void DBCViewer::LoadDB2IntoTable(QString file, QString format)
     int maxIndex = 0;
     int locales = 0;
     int unk2;
-
+    int unk3;
 
 
     QDataStream stream(&loader);
@@ -233,7 +240,7 @@ void DBCViewer::LoadDB2IntoTable(QString file, QString format)
         stream >> unk2;
         stream >> maxIndex;
         stream >> locales;
-        stream >> unk2;
+        stream >> unk3;
     }
 
     dbFileInfo.fields = fields;
@@ -245,17 +252,8 @@ void DBCViewer::LoadDB2IntoTable(QString file, QString format)
     dbFileInfo.locales = locales;
 
     printf("File: '%s'  Records: %d  fields: %d  recordSize: %d  stringsSize: %d tableHash: %d build %d\n", file.toAscii().constData(), records, fields, recordSize, stringsSize, tableHash, build);
-    for (int i = ui->tableWidget->columnCount(); i < fields; ++i)
-        ui->tableWidget->insertColumn(ui->tableWidget->columnCount());
-
-    for (int i = ui->tableWidget->rowCount(); i < records; ++i)
-        ui->tableWidget->insertRow(ui->tableWidget->rowCount());
-
-    for (int i = ui->tableWidget->columnCount(); i > fields; --i)
-        ui->tableWidget->removeColumn(ui->tableWidget->columnCount() - 1);
-
-    for (int i = ui->tableWidget->rowCount(); i > records; --i)
-        ui->tableWidget->removeRow(ui->tableWidget->rowCount() - 1);
+    ui->tableWidget->setColumnCount(fields);
+    ui->tableWidget->setRowCount(records);
 
     ui->searchColumn->clear();
     ui->searchColumn->insertItem(ui->searchColumn->count(), "Id");
@@ -265,16 +263,21 @@ void DBCViewer::LoadDB2IntoTable(QString file, QString format)
     if (maxIndex != 0)
     {
         int diff = maxIndex - unk2 + 1;
-        stream.skipRawData(diff * 6);
+        stream.skipRawData(diff * 4 + diff * 2);
     }
 
     int* table = new int[records * recordSize];
 
     for (int i = 0; i < records; ++i)
-    {
         stream.readRawData((char*)(table + i * recordSize), recordSize);
-    }
+
+    if (loader.size() - loader.pos() != stringsSize)
+        return;
+
+    int stringFieldError = -1;
+
     quint64 loadBegin = QDateTime::currentMSecsSinceEpoch();
+
     char* strings = new char[stringsSize];
     stream.readRawData(strings, stringsSize);
     printf("Loaded in: %llu ms\n", QDateTime::currentMSecsSinceEpoch() - loadBegin);
@@ -289,7 +292,7 @@ void DBCViewer::LoadDB2IntoTable(QString file, QString format)
         fieldTypes= QString(fields, 's');
         fieldTypes[0] = 'n';
 
-        for (register int i = 0; i < 50; ++i)
+        for (register int i = 0; i < 10; ++i)
         {
             for (register int b = 1; b < fields; ++b)
             {
@@ -309,8 +312,18 @@ void DBCViewer::LoadDB2IntoTable(QString file, QString format)
                 }
             }
         }
+        for (register int b = 1; b < fields; ++b)
+            if (fieldTypes[b] == 's')
+                for (register int i = 0; i < records; ++i)
+                    if (table[i * recordSize + b] > stringsSize)
+                    {
+                        fieldTypes[b] = 'i';
+                        break;
+                    }
         printf("Automatic Detection finished in: %llu ms\n", QDateTime::currentMSecsSinceEpoch() - loadBegin);
     }
+
+    ui->statusBar->showMessage("Loading data... Please wait this can take a moment");
 
     loadBegin = QDateTime::currentMSecsSinceEpoch();
     for (register int i = 0; i < records; ++i)
@@ -326,8 +339,11 @@ void DBCViewer::LoadDB2IntoTable(QString file, QString format)
             }
             switch (fieldTypes[b].toAscii())
             {
-                case 's': // strings;
-                    item->setText(QString(strings + table[i * recordSize + b]));
+                case 's': // strings
+                    if (table[i * recordSize + b] <= stringsSize)
+                        item->setText(QString(strings + table[i * recordSize + b]));
+                    else
+                        stringFieldError = b;
                     break;
                 case 'n': // index
                 case 'i': // ints
@@ -345,8 +361,12 @@ void DBCViewer::LoadDB2IntoTable(QString file, QString format)
     }
     printf("Inserting data into table finished in: %llu ms\n", QDateTime::currentMSecsSinceEpoch() - loadBegin);
     ui->tableWidget->setUpdatesEnabled(true);
-    ui->statusBar->showMessage(QString("Loaded ")+QString::number(records)+" rows");
+    ui->statusBar->showMessage(QString("Loaded ")+ QString::number(records)+" rows");
     loader.close();
+
+    if (stringFieldError > 0)
+        QMessageBox::information(this, "Mistaken field", "Field " + QString::number(stringFieldError) + " was set as string but it points over the strings data");
+
     delete [] table;
     delete [] strings;
 }
@@ -394,6 +414,8 @@ void DBCViewer::ReloadDBCIntoTable()
     stream >> recordSize;
     stream >> stringsSize;
 
+    int stringFieldError = -1;
+
     int* table = new int[records * recordSize];
 
     for (int i = 0; i < records; ++i)
@@ -420,7 +442,10 @@ void DBCViewer::ReloadDBCIntoTable()
             switch (fieldTypes[b].toAscii())
             {
                 case 's': // strings;
-                    item->setText(QString(strings + table[i * recordSize + b]));
+                    if (table[i * recordSize + b] <= stringsSize)
+                        item->setText(QString(strings + table[i * recordSize + b]));
+                    else
+                        stringFieldError = b;
                     break;
                 case 'n': // index
                 case 'i': // ints
@@ -439,6 +464,10 @@ void DBCViewer::ReloadDBCIntoTable()
     ui->tableWidget->setUpdatesEnabled(true);
     ui->statusBar->showMessage("File Loaded");
     loader.close();
+
+    if (stringFieldError > 0)
+        QMessageBox::information(this, "Mistaken field", "Field " +  QString::number(stringFieldError) + " was set as string but it points over the strings data");
+
     delete [] table;
     delete [] strings;
 }
@@ -474,8 +503,7 @@ void DBCViewer::ReloadDB2IntoTable()
     int maxIndex;
     int locales;
     int unk2;
-
-
+    int unk3;
 
     QDataStream stream(&loader);
     stream.setByteOrder(QDataStream::LittleEndian);
@@ -493,7 +521,7 @@ void DBCViewer::ReloadDB2IntoTable()
         stream >> unk2;
         stream >> maxIndex;
         stream >> locales;
-        stream >> unk2;
+        stream >> unk3;
     }
 
     if (maxIndex != 0)
@@ -512,6 +540,8 @@ void DBCViewer::ReloadDB2IntoTable()
     char* strings = new char[stringsSize];
     stream.readRawData(strings, stringsSize);
 
+    int stringFieldError = -1;
+
     ui->tableWidget->setUpdatesEnabled(false);
 
     for (register int i = 0; i < records; ++i)
@@ -528,7 +558,10 @@ void DBCViewer::ReloadDB2IntoTable()
             switch (fieldTypes[b].toAscii())
             {
                 case 's': // strings;
-                    item->setText(QString(strings + table[i * recordSize + b]));
+                    if (table[i * recordSize + b] <= stringsSize)
+                        item->setText(QString(strings + table[i * recordSize + b]));
+                    else
+                        stringFieldError = b;
                     break;
                 case 'n': // index
                 case 'i': // ints
@@ -547,6 +580,10 @@ void DBCViewer::ReloadDB2IntoTable()
     ui->tableWidget->setUpdatesEnabled(true);
     ui->statusBar->showMessage("File Loaded");
     loader.close();
+
+    if (stringFieldError > 0)
+        QMessageBox::information(this, "Mistaken field", "Field " +  QString::number(stringFieldError) + " was set as string but it points over the strings data");
+
     delete [] table;
     delete [] strings;
 }
