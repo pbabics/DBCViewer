@@ -71,7 +71,7 @@ QString DBCViewer::DetectFormat(int rows, int cols, int *table, int recordSize, 
         {
             bool n = true;
             for (register int i = 0; i < rows; ++i)
-                if (table[i * recordSize + b] > stringsSize || table[i * recordSize + b] < 0)
+                if (table[i * recordSize + b] > stringsSize || table[i * recordSize + b] < 0 || *(strings - 1 + table[i * recordSize + b] ) != 0)
                 {
                     fieldTypes[b] = 'i';
                     break;
@@ -103,7 +103,7 @@ void DBCViewer::FillTable(int rows, int cols, int *table, int recordSize, char *
             {
                 case 's': // strings;
                     if (table[i * recordSize + b] <= stringsSize)
-                        item->setText(QString(strings + table[i * recordSize + b]));
+                        item->setData(Qt::DisplayRole, QString(strings + table[i * recordSize + b]));
                     else
                         stringFieldError = b;
                     break;
@@ -183,15 +183,16 @@ void DBCViewer::LoadDBCIntoTable(QString file, QString format)
     for (int i = ui->searchColumn->count(); i < ui->tableWidget->columnCount(); ++i)
         ui->searchColumn->insertItem(ui->searchColumn->count(), "Column " + QString::number(i + 1));
 
+     quint64 loadBegin = QDateTime::currentMSecsSinceEpoch();
+
     int* table = new int[records * recordSize];
 
     for (int i = 0; i < records; ++i)
-    {
         stream.readRawData((char*)(table + i * recordSize), recordSize);
-    }
-    quint64 loadBegin = QDateTime::currentMSecsSinceEpoch();
+
     char* strings = new char[stringsSize];
     stream.readRawData(strings, stringsSize);
+
     printf("Loaded in: %llu ms\n", QDateTime::currentMSecsSinceEpoch() - loadBegin);
     ui->tableWidget->setUpdatesEnabled(false);
 
@@ -371,15 +372,14 @@ void DBCViewer::ReloadDBCIntoTable()
     stream >> recordSize;
     stream >> stringsSize;
 
-    int* table = new int[records * recordSize];
+   int* table = new int[records * recordSize];
 
-    for (int i = 0; i < records; ++i)
-    {
-        stream.readRawData((char*)(table + i * recordSize), recordSize);
-    }
+   for (int i = 0; i < records; ++i)
+       stream.readRawData((char*)(table + i * recordSize), recordSize);
 
-    char* strings = new char[stringsSize];
-    stream.readRawData(strings, stringsSize);
+   char* strings = new char[stringsSize];
+   stream.readRawData(strings, stringsSize);
+
 
     ui->statusBar->showMessage("Loading data... Please wait this can take a moment");
 
