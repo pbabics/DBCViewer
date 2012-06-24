@@ -639,6 +639,7 @@ void DBCViewer::on_actionExport_To_SQL_triggered()
     if (!saveDialog.exec())
         return;
     QString exportFileName = saveDialog.selectedFiles().first();
+    QString tableName = QInputDialog::getText(this, "Set Table name", "Enter table name :");
     QFile exportFile;
     exportFile.setFileName(exportFileName);
     if (!exportFile.open(QIODevice::WriteOnly))
@@ -651,7 +652,7 @@ void DBCViewer::on_actionExport_To_SQL_triggered()
     }
     QTextStream stream(&exportFile);
     stream << "INSERT INTO ";
-    stream << "`" << "tablename" <<"` ";
+    stream << "`" << tableName <<"` ";
     stream << "VALUES\n";
     for (int i = 0; i < this->ui->tableWidget->rowCount(); ++i)
     {
