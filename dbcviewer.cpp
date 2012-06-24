@@ -174,8 +174,9 @@ void DBCViewer::LoadDBCIntoTable(QString file, QString format)
     dbFileInfo.StringSize = stringsSize;
 
     printf("File: '%s'  Records: %d  fields: %d  recordSize: %d  stringsSize: %d\n", file.toAscii().constData(), records, fields, recordSize, stringsSize);
-    ui->tableWidget->setColumnCount(fields);
+
     ui->tableWidget->setRowCount(records);
+    ui->tableWidget->setColumnCount(fields);
 
     ui->searchColumn->clear();
     ui->searchColumn->insertItem(ui->searchColumn->count(), "Id");
@@ -279,8 +280,10 @@ void DBCViewer::LoadDB2IntoTable(QString file, QString format)
     dbFileInfo.locales = locales;
 
     printf("File: '%s'  Records: %d  fields: %d  recordSize: %d  stringsSize: %d tableHash: %d build %d\n", file.toAscii().constData(), records, fields, recordSize, stringsSize, tableHash, build);
-    ui->tableWidget->setColumnCount(fields);
+
     ui->tableWidget->setRowCount(records);
+    ui->tableWidget->setColumnCount(fields);
+
 
     ui->searchColumn->clear();
     ui->searchColumn->insertItem(ui->searchColumn->count(), "Id");
@@ -483,7 +486,7 @@ void DBCViewer::on_actionGet_triggered()
 
 void DBCViewer::on_actionSet_triggered()
 {
-    QString input = QInputDialog::getText(this, "Set Format String", "Enter Format String :");
+    QString input = QInputDialog::getText(this, "Set Format String", "Enter Format String :", QLineEdit::Normal, fieldTypes);
     if (input.size() != fieldTypes.size())
     {
         QMessageBox msg(QMessageBox::Information, "Invalid Format string", "Format string you have entered does not match length of actual format string", QMessageBox::Ok);
@@ -624,6 +627,7 @@ void DBCViewer::on_actionManual_field_Setup_triggered()
     if (!file.trimmed().size())
         return;
     QString input = QInputDialog::getText(this, "Set Format String", "Enter Format String :");
+
     ui->statusBar->showMessage("Loading... " + file);
     LoadDB2IntoTable(file, input);
 }
