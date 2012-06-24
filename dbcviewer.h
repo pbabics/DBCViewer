@@ -9,6 +9,7 @@
 #include <QDateTime>
 #include <QFileInfo>
 #include <QFile>
+#include <QTextStream>
 #include <cmath>
 
 namespace Ui {
@@ -26,8 +27,11 @@ public:
 private slots:
     void on_actionQuit_triggered();
 
-    void LoadIntoTable(QString file, QString format);
-    void ReloadIntoTable();
+    void LoadDBCIntoTable(QString file, QString format);
+    void LoadDB2IntoTable(QString file, QString format);
+
+    void ReloadDBCIntoTable();
+    void ReloadDB2IntoTable();
 
     void on_tableWidget_currentCellChanged(int currentRow, int currentColumn, int previousRow, int previousColumn);
 
@@ -43,12 +47,22 @@ private slots:
 
     void on_actionManual_Field_Setup_triggered();
 
+    void on_actionExport_To_SQL_triggered();
+
+    void on_actionAutomatic_field_detection_triggered();
+
+    void on_actionManual_field_Setup_triggered();
+
 private:
     Ui::DBCViewer *ui;
     QString lastFile;
     QString fieldTypes;
     QFile loader;
     QFileInfo fileInfo;
+
+    QFileDialog dbcDialog;
+    QFileDialog db2Dialog;
+    QFileDialog saveDialog;
 };
 
 #endif // DBCVIEWER_H

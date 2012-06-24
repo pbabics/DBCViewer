@@ -62,6 +62,9 @@
       <property name="selectionBehavior">
        <enum>QAbstractItemView::SelectRows</enum>
       </property>
+      <property name="sortingEnabled">
+       <bool>true</bool>
+      </property>
       <property name="rowCount">
        <number>0</number>
       </property>
@@ -69,7 +72,7 @@
        <number>1</number>
       </property>
       <attribute name="horizontalHeaderShowSortIndicator" stdset="0">
-       <bool>false</bool>
+       <bool>true</bool>
       </attribute>
       <attribute name="verticalHeaderVisible">
        <bool>false</bool>
@@ -208,14 +211,24 @@
     </property>
     <widget class="QMenu" name="menuOpen">
      <property name="title">
-      <string>Open</string>
+      <string>Open DBC</string>
      </property>
      <addaction name="actionAutomatic_Field_Detection"/>
      <addaction name="actionManual_Field_Setup"/>
     </widget>
+    <widget class="QMenu" name="menuOpen_DB2">
+     <property name="title">
+      <string>Open DB2</string>
+     </property>
+     <addaction name="actionAutomatic_field_detection"/>
+     <addaction name="actionManual_field_Setup"/>
+    </widget>
     <addaction name="menuOpen"/>
+    <addaction name="menuOpen_DB2"/>
     <addaction name="separator"/>
     <addaction name="actionReload"/>
+    <addaction name="separator"/>
+    <addaction name="actionExport_To_SQL"/>
     <addaction name="separator"/>
     <addaction name="actionQuit"/>
    </widget>
@@ -271,12 +284,27 @@
   </action>
   <action name="actionAutomatic_Field_Detection">
    <property name="text">
-    <string>Automaticaly detec field types</string>
+    <string>Automatic field Detection</string>
    </property>
   </action>
   <action name="actionManual_Field_Setup">
    <property name="text">
     <string>Manual Field Setup</string>
+   </property>
+  </action>
+  <action name="actionExport_To_SQL">
+   <property name="text">
+    <string>Export To SQL</string>
+   </property>
+  </action>
+  <action name="actionAutomatic_field_detection">
+   <property name="text">
+    <string>Automatic field detection</string>
+   </property>
+  </action>
+  <action name="actionManual_field_Setup">
+   <property name="text">
+    <string>Manual field Setup</string>
    </property>
   </action>
  </widget>
