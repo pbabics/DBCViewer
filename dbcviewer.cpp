@@ -38,6 +38,96 @@ void DBCViewer::on_actionQuit_triggered()
     QApplication::quit();
 }
 
+
+QString DBCViewer::DetectFormat(int rows, int cols, int *table, int recordSize, char *strings, int stringsSize, int usedRows)
+{
+    QString fieldTypes(cols, 's');
+    fieldTypes[0] = 'n';
+    for (register int i = 0; i < ( rows > usedRows ? usedRows : rows ); ++i)
+    {
+        for (register int b = 1; b < cols; ++b)
+        {
+            if ((
+                (table[i * recordSize + b] > 0 &&
+                table[i * recordSize + b] <= stringsSize  &&
+                (*(strings + table[i * recordSize + b] - 1) == 0) &&
+                *(strings + table[i * recordSize + b]) >= 32 &&
+                *(strings + table[i * recordSize + b]) <= 126) ||
+                table[i * recordSize + b] == 0 ) &&
+                fieldTypes[b] == 's')
+                fieldTypes[b] = 's';
+            else
+            {
+                if ((AbsLog10(table[i * recordSize + b]) > 7 && abs(AbsLog10(float(table[i * recordSize + b]))) < 10 && table[i * recordSize + b] != 0) ||
+                     (table[i * recordSize + b] == 0 && fieldTypes[b] == 'f'))
+                    fieldTypes[b] = 'f';
+                else
+                    fieldTypes[b] = 'i';
+            }
+        }
+    }
+    for (register int b = 1; b < cols; ++b)
+        if (fieldTypes[b] == 's')
+        {
+            bool n = true;
+            for (register int i = 0; i < rows; ++i)
+                if (table[i * recordSize + b] > stringsSize || table[i * recordSize + b] < 0)
+                {
+                    fieldTypes[b] = 'i';
+                    break;
+                }
+                else if (table[i * recordSize + b] != 0) n = false;
+            if (n)
+                fieldTypes[b] = 'i';
+         }
+    return fieldTypes;
+}
+
+void DBCViewer::FillTable(int rows, int cols, int *table, int recordSize, char *strings, int stringsSize)
+{
+    int stringFieldError = -1;
+    ui->tableWidget->setUpdatesEnabled(false);
+    quint64 loadBegin = QDateTime::currentMSecsSinceEpoch();
+    for (register int i = 0; i < rows; ++i)
+    {
+        for (register int b = 0; b < cols; ++b)
+        {
+            QTableWidgetItem* item = ui->tableWidget->item(i, b);
+            bool created = false;
+            if (!item)
+            {
+                item = new QTableWidgetItem();
+                created = true;
+            }
+            switch (fieldTypes[b].toAscii())
+            {
+                case 's': // strings;
+                    if (table[i * recordSize + b] <= stringsSize)
+                        item->setText(QString(strings + table[i * recordSize + b]));
+                    else
+                        stringFieldError = b;
+                    break;
+                case 'n': // index
+                case 'i': // ints
+                    item->setData(Qt::DisplayRole, table[i * recordSize + b]);
+                    break;
+                case 'f': // float
+                    item->setData(Qt::DisplayRole, *(float*)(table + i * recordSize + b));
+                    break;
+                case 'x': //
+                    break;
+            }
+            if (created)
+                ui->tableWidget->setItem(i, b, item);
+        }
+    }
+    printf("Inserting data into table finished in: %llu ms\n", QDateTime::currentMSecsSinceEpoch() - loadBegin);
+    ui->tableWidget->setUpdatesEnabled(true);
+    ui->statusBar->showMessage(QString("Loaded ") + QString::number(rows) + " rows");
+    if (stringFieldError > 0)
+        QMessageBox::information(this, "Mistaken field", "Field " + QString::number(stringFieldError) + " was set as string but it points over the strings data");
+}
+
 void DBCViewer::LoadDBCIntoTable(QString file, QString format)
 {
     if (loader.isOpen())
@@ -51,6 +141,8 @@ void DBCViewer::LoadDBCIntoTable(QString file, QString format)
         ui->statusBar->showMessage("Cannot open file " + file);
         return;
     }
+    else
+        this->setWindowTitle("DBC Viewer - " + file);
 
     char title[5];
     int records;
@@ -102,98 +194,19 @@ void DBCViewer::LoadDBCIntoTable(QString file, QString format)
     printf("Loaded in: %llu ms\n", QDateTime::currentMSecsSinceEpoch() - loadBegin);
     ui->tableWidget->setUpdatesEnabled(false);
 
-    int stringFieldError = -1;
-
     if (format.length() == fields)
         fieldTypes = format;
     else
     {
         loadBegin = QDateTime::currentMSecsSinceEpoch();
-        fieldTypes = QString(fields, 's');
-        fieldTypes[0] = 'n';
-
-        for (register int i = 0; i < ( records > 50 ? 50 : records ); ++i)
-        {
-            for (register int b = 1; b < fields; ++b)
-            {
-                if ((
-                    (table[i * recordSize + b] > 0 &&
-                    table[i * recordSize + b] <= stringsSize  &&
-                    (*(strings + table[i * recordSize + b] - 1) == 0) &&
-                    *(strings + table[i * recordSize + b]) >= 32 &&
-                    *(strings + table[i * recordSize + b]) <= 126) ||
-                    table[i * recordSize + b] == 0 ) &&
-                    fieldTypes[b] == 's')
-                    fieldTypes[b] = 's';
-                else
-                {
-                    if ((AbsLog10(table[i * recordSize + b]) > 7 && abs(AbsLog10(float(table[i * recordSize + b]))) < 10 && table[i * recordSize + b] != 0) ||
-                         (table[i * recordSize + b] == 0 && fieldTypes[b] == 'f'))
-                        fieldTypes[b] = 'f';
-                    else
-                        fieldTypes[b] = 'i';
-                }
-            }
-        }
-        for (register int b = 1; b < fields; ++b)
-            if (fieldTypes[b] == 's')
-            {
-                bool n = true;
-                for (register int i = 0; i < records; ++i)
-                    if (table[i * recordSize + b] > stringsSize || table[i * recordSize + b] < 0)
-                    {
-                        fieldTypes[b] = 'i';
-                        break;
-                    }
-                    else if (table[i * recordSize + b] != 0) n = false;
-                if (n)
-                    fieldTypes[b] = 'i';
-             }
+        fieldTypes = DetectFormat(records, fields, table, recordSize, strings, stringsSize);
         printf("Automatic Detection finished in: %llu ms\n", QDateTime::currentMSecsSinceEpoch() - loadBegin);
     }
 
-    loadBegin = QDateTime::currentMSecsSinceEpoch();
-    for (register int i = 0; i < records; ++i)
-    {
-        for (register int b = 0; b < fields; ++b)
-        {
-            QTableWidgetItem* item = ui->tableWidget->item(i, b);
-            bool created = false;
-            if (!item)
-            {
-                item = new QTableWidgetItem();
-                created = true;
-            }
-            switch (fieldTypes[b].toAscii())
-            {
-                case 's': // strings;
-                    if (table[i * recordSize + b] <= stringsSize)
-                        item->setText(QString(strings + table[i * recordSize + b]));
-                    else
-                        stringFieldError = b;
-                    break;
-                case 'n': // index
-                case 'i': // ints
-                    item->setData(Qt::DisplayRole, table[i * recordSize + b]);
-                    break;
-                case 'f': // float
-                    item->setData(Qt::DisplayRole, *(float*)(table + i * recordSize + b));
-                    break;
-                case 'x': //
-                    break;
-            }
-            if (created)
-                ui->tableWidget->setItem(i, b, item);
-        }
-    }
-    printf("Inserting data into table finished in: %llu ms\n", QDateTime::currentMSecsSinceEpoch() - loadBegin);
-    ui->tableWidget->setUpdatesEnabled(true);
-    ui->statusBar->showMessage(QString("Loaded ")+QString::number(records)+" rows");
+    ui->statusBar->showMessage("Loading data... Please wait this can take a moment");
+
+    FillTable(records, fields, table, recordSize, strings, stringsSize);
     loader.close();
-
-    if (stringFieldError > 0)
-        QMessageBox::information(this, "Mistaken field", "Field " + QString::number(stringFieldError) + " was set as string but it points over the strings data");
-
     delete [] table;
     delete [] strings;
 }
@@ -237,6 +250,8 @@ void DBCViewer::LoadDB2IntoTable(QString file, QString format)
         ui->statusBar->showMessage("File is not DB2 " + file);
         return;
     }
+    else
+        this->setWindowTitle("DBC Viewer - " + file);
     lastFile = file;
     fileInfo = QFileInfo(file);
     stream >> records;
@@ -286,107 +301,25 @@ void DBCViewer::LoadDB2IntoTable(QString file, QString format)
     if (loader.size() - loader.pos() != stringsSize)
         return;
 
-    int stringFieldError = -1;
-
     quint64 loadBegin = QDateTime::currentMSecsSinceEpoch();
 
     char* strings = new char[stringsSize];
     stream.readRawData(strings, stringsSize);
     printf("Loaded in: %llu ms\n", QDateTime::currentMSecsSinceEpoch() - loadBegin);
-    ui->tableWidget->setUpdatesEnabled(false);
-
 
     if (format.length() == fields)
         fieldTypes = format;
     else
     {
         loadBegin = QDateTime::currentMSecsSinceEpoch();
-        fieldTypes= QString(fields, 's');
-        fieldTypes[0] = 'n';
-
-        for (register int i = 0; i < ( records > 30 ? 30 : records ); ++i)
-        {
-            for (register int b = 1; b < fields; ++b)
-            {
-                if ((
-                    (table[i * recordSize + b] > 0 &&
-                    table[i * recordSize + b] <= stringsSize  &&
-                    *(strings - 1 + table[i * recordSize + b]) == 0 &&
-                    *(strings + table[i * recordSize + b]) >= 32 &&
-                    *(strings + table[i * recordSize + b]) <= 126) ||
-                    table[i * recordSize + b] == 0 ) &&
-                    fieldTypes[b] == 's')
-                    fieldTypes[b] = 's';
-                else
-                {
-                    if ((AbsLog10(table[i * recordSize + b]) > 7 && abs(AbsLog10(float(table[i * recordSize + b]))) < 10 && table[i * recordSize + b] != 0) ||
-                         (table[i * recordSize + b] == 0 && fieldTypes[b] == 'f'))
-                        fieldTypes[b] = 'f';
-                    else
-                        fieldTypes[b] = 'i';
-                }
-            }
-        }
-        for (register int b = 1; b < fields; ++b)
-            if (fieldTypes[b] == 's')
-            {
-                bool n = true;
-                for (register int i = 0; i < records; ++i)
-                    if (table[i * recordSize + b] > stringsSize || table[i * recordSize + b] < 0 || *(strings - 1 + table[i * recordSize + b]) != 0)
-                    {
-                        fieldTypes[b] = 'i';
-                        break;
-                    }
-                    else if (table[i * recordSize + b] != 0) n = false;
-                if (n)
-                    fieldTypes[b] = 'i';
-             }
+        fieldTypes = DetectFormat(records, fields, table, recordSize, strings, stringsSize, 30);
         printf("Automatic Detection finished in: %llu ms\n", QDateTime::currentMSecsSinceEpoch() - loadBegin);
     }
 
     ui->statusBar->showMessage("Loading data... Please wait this can take a moment");
 
-    loadBegin = QDateTime::currentMSecsSinceEpoch();
-    for (register int i = 0; i < records; ++i)
-    {
-        for (register int b = 0; b < fields; ++b)
-        {
-            QTableWidgetItem* item = ui->tableWidget->item(i, b);
-            bool created = false;
-            if (!item)
-            {
-                item = new QTableWidgetItem();
-                created = true;
-            }
-            switch (fieldTypes[b].toAscii())
-            {
-                case 's': // strings
-                    if (table[i * recordSize + b] <= stringsSize)
-                        item->setText(QString(strings + table[i * recordSize + b]));
-                    else
-                        stringFieldError = b;
-                    break;
-                case 'n': // index
-                case 'i': // ints
-                    item->setData(Qt::DisplayRole, table[i * recordSize + b]);
-                    break;
-                case 'f': // float
-                    item->setData(Qt::DisplayRole, *(float*)(table + i * recordSize + b));
-                    break;
-                case 'x': //
-                    break;
-            }
-            if (created)
-                ui->tableWidget->setItem(i, b, item);
-        }
-    }
-    printf("Inserting data into table finished in: %llu ms\n", QDateTime::currentMSecsSinceEpoch() - loadBegin);
-    ui->tableWidget->setUpdatesEnabled(true);
-    ui->statusBar->showMessage(QString("Loaded ")+ QString::number(records)+" rows");
+    FillTable(records, fields, table, recordSize, strings, stringsSize);
     loader.close();
-
-    if (stringFieldError > 0)
-        QMessageBox::information(this, "Mistaken field", "Field " + QString::number(stringFieldError) + " was set as string but it points over the strings data");
 
     delete [] table;
     delete [] strings;
@@ -435,8 +368,6 @@ void DBCViewer::ReloadDBCIntoTable()
     stream >> recordSize;
     stream >> stringsSize;
 
-    int stringFieldError = -1;
-
     int* table = new int[records * recordSize];
 
     for (int i = 0; i < records; ++i)
@@ -447,47 +378,10 @@ void DBCViewer::ReloadDBCIntoTable()
     char* strings = new char[stringsSize];
     stream.readRawData(strings, stringsSize);
 
-    ui->tableWidget->setUpdatesEnabled(false);
+    ui->statusBar->showMessage("Loading data... Please wait this can take a moment");
 
-    for (register int i = 0; i < records; ++i)
-    {
-        for (register int b = 0; b < fields; ++b)
-        {
-            QTableWidgetItem* item = ui->tableWidget->item(i, b);
-            bool created = false;
-            if (!item)
-            {
-                item = new QTableWidgetItem();
-                created = true;
-            }
-            switch (fieldTypes[b].toAscii())
-            {
-                case 's': // strings;
-                    if (table[i * recordSize + b] <= stringsSize)
-                        item->setText(QString(strings + table[i * recordSize + b]));
-                    else
-                        stringFieldError = b;
-                    break;
-                case 'n': // index
-                case 'i': // ints
-                    item->setData(Qt::DisplayRole, table[i * recordSize + b]);
-                    break;
-                case 'f': // float
-                    item->setData(Qt::DisplayRole, *(float*)(table + i * recordSize + b));
-                    break;
-                case 'x': //
-                    break;
-            }
-            if (created)
-                ui->tableWidget->setItem(i, b, item);
-        }
-    }
-    ui->tableWidget->setUpdatesEnabled(true);
-    ui->statusBar->showMessage("File Loaded");
+    FillTable(records, fields, table, recordSize, strings, stringsSize);
     loader.close();
-
-    if (stringFieldError > 0)
-        QMessageBox::information(this, "Mistaken field", "Field " +  QString::number(stringFieldError) + " was set as string but it points over the strings data");
 
     delete [] table;
     delete [] strings;
@@ -561,49 +455,10 @@ void DBCViewer::ReloadDB2IntoTable()
     char* strings = new char[stringsSize];
     stream.readRawData(strings, stringsSize);
 
-    int stringFieldError = -1;
+    ui->statusBar->showMessage("Loading data... Please wait this can take a moment");
 
-    ui->tableWidget->setUpdatesEnabled(false);
-
-    for (register int i = 0; i < records; ++i)
-    {
-        for (register int b = 0; b < fields; ++b)
-        {
-            QTableWidgetItem* item = ui->tableWidget->item(i, b);
-            bool created = false;
-            if (!item)
-            {
-                item = new QTableWidgetItem();
-                created = true;
-            }
-            switch (fieldTypes[b].toAscii())
-            {
-                case 's': // strings;
-                    if (table[i * recordSize + b] <= stringsSize)
-                        item->setText(QString(strings + table[i * recordSize + b]));
-                    else
-                        stringFieldError = b;
-                    break;
-                case 'n': // index
-                case 'i': // ints
-                    item->setData(Qt::DisplayRole, table[i * recordSize + b]);
-                    break;
-                case 'f': // float
-                    item->setData(Qt::DisplayRole, *(float*)(table + i * recordSize + b));
-                    break;
-                case 'x': //
-                    break;
-            }
-            if (created)
-                ui->tableWidget->setItem(i, b, item);
-        }
-    }
-    ui->tableWidget->setUpdatesEnabled(true);
-    ui->statusBar->showMessage("File Loaded");
+    FillTable(records, fields, table, recordSize, strings, stringsSize);
     loader.close();
-
-    if (stringFieldError > 0)
-        QMessageBox::information(this, "Mistaken field", "Field " +  QString::number(stringFieldError) + " was set as string but it points over the strings data");
 
     delete [] table;
     delete [] strings;

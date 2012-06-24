@@ -33,6 +33,10 @@ private slots:
     void ReloadDBCIntoTable();
     void ReloadDB2IntoTable();
 
+    QString DetectFormat(int rows, int cols, int *table, int recordSize, char *strings, int stringsSize, int usedRows = 10);
+
+    void FillTable(int rows, int cols, int *table, int recordSize, char *strings, int stringsSize);
+
     void on_tableWidget_currentCellChanged(int currentRow, int currentColumn, int previousRow, int previousColumn);
 
     void on_actionGet_triggered();
