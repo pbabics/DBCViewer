@@ -592,7 +592,7 @@ void DBCViewer::on_actionExport_To_SQL_triggered()
         stream << '(';
         for (int b = 0; b < this->ui->tableWidget->columnCount(); ++b)
         {
-            stream << "'" << this->ui->tableWidget->item(i, b)->text() << "'";
+            stream << "'" << this->ui->tableWidget->item(i, b)->text().replace('\\',"\\\\").replace('\'', "\\'") << "'";
             if (b != this->ui->tableWidget->columnCount() - 1)
                 stream << ',';
         }
