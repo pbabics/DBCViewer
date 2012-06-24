@@ -53,6 +53,8 @@ private slots:
 
     void on_actionManual_field_Setup_triggered();
 
+    void on_actionFile_Statistics_triggered();
+
 private:
     Ui::DBCViewer *ui;
     QString lastFile;
@@ -63,6 +65,17 @@ private:
     QFileDialog dbcDialog;
     QFileDialog db2Dialog;
     QFileDialog saveDialog;
+
+    struct
+    {
+        int records;
+        int fields;
+        int sizeOfRecord;
+        int StringSize;
+        int tableHash;
+        int build;
+        int locales;
+    } dbFileInfo;
 };
 
 #endif // DBCVIEWER_H

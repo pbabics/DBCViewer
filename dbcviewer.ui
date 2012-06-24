@@ -244,6 +244,9 @@
      <addaction name="actionSet"/>
     </widget>
     <addaction name="menuGet_Format_String"/>
+    <addaction name="separator"/>
+    <addaction name="actionFile_Statistics"/>
+    <addaction name="separator"/>
    </widget>
    <addaction name="menuFile"/>
    <addaction name="menuView"/>
@@ -289,7 +292,7 @@
   </action>
   <action name="actionManual_Field_Setup">
    <property name="text">
-    <string>Manual Field Setup</string>
+    <string>Manual field Setup</string>
    </property>
   </action>
   <action name="actionExport_To_SQL">
@@ -305,6 +308,11 @@
   <action name="actionManual_field_Setup">
    <property name="text">
     <string>Manual field Setup</string>
+   </property>
+  </action>
+  <action name="actionFile_Statistics">
+   <property name="text">
+    <string>File Statistics</string>
    </property>
   </action>
  </widget>

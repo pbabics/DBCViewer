@@ -72,6 +72,12 @@ void DBCViewer::LoadDBCIntoTable(QString file, QString format)
     stream >> fields;
     stream >> recordSize;
     stream >> stringsSize;
+
+    dbFileInfo.fields = fields;
+    dbFileInfo.records = records;
+    dbFileInfo.sizeOfRecord = recordSize;
+    dbFileInfo.StringSize = stringsSize;
+
     printf("File: '%s'  Records: %d  fields: %d  recordSize: %d  stringsSize: %d\n", file.toAscii().constData(), records, fields, recordSize, stringsSize);
     for (int i = ui->tableWidget->columnCount(); i < fields; ++i)
         ui->tableWidget->insertColumn(ui->tableWidget->columnCount());
@@ -195,8 +201,8 @@ void DBCViewer::LoadDB2IntoTable(QString file, QString format)
     int tableHash;
     int build;
     int unk;
-    int maxIndex;
-    int locales;
+    int maxIndex = 0;
+    int locales = 0;
     int unk2;
 
 
@@ -229,6 +235,14 @@ void DBCViewer::LoadDB2IntoTable(QString file, QString format)
         stream >> locales;
         stream >> unk2;
     }
+
+    dbFileInfo.fields = fields;
+    dbFileInfo.records = records;
+    dbFileInfo.sizeOfRecord = recordSize;
+    dbFileInfo.StringSize = stringsSize;
+    dbFileInfo.build = build;
+    dbFileInfo.tableHash = tableHash;
+    dbFileInfo.locales = locales;
 
     printf("File: '%s'  Records: %d  fields: %d  recordSize: %d  stringsSize: %d tableHash: %d build %d\n", file.toAscii().constData(), records, fields, recordSize, stringsSize, tableHash, build);
     for (int i = ui->tableWidget->columnCount(); i < fields; ++i)
@@ -699,4 +713,23 @@ void DBCViewer::on_actionManual_field_Setup_triggered()
     QString input = QInputDialog::getText(this, "Set Format String", "Enter Format String :");
     ui->statusBar->showMessage("Loading... " + file);
     LoadDB2IntoTable(file, input);
+}
+
+void DBCViewer::on_actionFile_Statistics_triggered()
+{
+    QMessageBox message;
+
+    message.setWindowTitle("File Statistics");
+
+    QString content =
+            "Fields Count: " + QString::number(dbFileInfo.fields) +
+            "\nRecords Count: " + QString::number(dbFileInfo.records) +
+            "\nSize of Record: " + QString::number(dbFileInfo.sizeOfRecord) +
+            "\nStrings Size: " + QString::number(dbFileInfo.StringSize);
+    if (lastFile.endsWith(".db2"))
+        content += "\nBuild: " + QString::number(dbFileInfo.build) +
+                   "\nTable hash: " + QString::number(dbFileInfo.tableHash) +
+                   "\nLocale: " + QString::number(dbFileInfo.locales);
+    message.setText(content);
+    message.exec();
 }
