@@ -639,7 +639,13 @@ void DBCViewer::on_actionExport_To_SQL_triggered()
     if (!saveDialog.exec())
         return;
     QString exportFileName = saveDialog.selectedFiles().first();
+
+    if (!exportFileName.endsWith(".sql"))
+        exportFileName.append(".sql");
+
     QString tableName = QInputDialog::getText(this, "Set Table name", "Enter table name :");
+
+
     QFile exportFile;
     exportFile.setFileName(exportFileName);
     if (!exportFile.open(QIODevice::WriteOnly))
