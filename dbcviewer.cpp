@@ -1,6 +1,9 @@
 #include "dbcviewer.h"
 #include "ui_dbcviewer.h"
 
+
+#define AbsLog10(v) floor(log10(abs(v)))
+
 DBCViewer::DBCViewer(QWidget *parent) :
     QMainWindow(parent),
     ui(new Ui::DBCViewer),
@@ -106,23 +109,26 @@ void DBCViewer::LoadDBCIntoTable(QString file, QString format)
     else
     {
         loadBegin = QDateTime::currentMSecsSinceEpoch();
-        fieldTypes= QString(fields, 's');
+        fieldTypes = QString(fields, 's');
         fieldTypes[0] = 'n';
 
-        for (register int i = 0; i < 50; ++i)
+        for (register int i = 0; i < ( records > 50 ? 50 : records ); ++i)
         {
             for (register int b = 1; b < fields; ++b)
             {
-                if (table[i * recordSize + b] > 0 &&
-                    table[i * recordSize + b] < stringsSize  &&
-                    *(strings + table[i * recordSize + b] - 1) == 0 &&
-                    *(strings + table[i * recordSize + b]) >= 'A' &&
-                    *(strings + table[i * recordSize + b]) <= 'z' &&
+                if ((
+                    (table[i * recordSize + b] > 0 &&
+                    table[i * recordSize + b] <= stringsSize  &&
+                    (*(strings + table[i * recordSize + b] - 1) == 0) &&
+                    *(strings + table[i * recordSize + b]) >= 32 &&
+                    *(strings + table[i * recordSize + b]) <= 126) ||
+                    table[i * recordSize + b] == 0 ) &&
                     fieldTypes[b] == 's')
                     fieldTypes[b] = 's';
                 else
                 {
-                    if (*(float*)(table + i * recordSize + b) - int(*(float*)(table + i * recordSize + b)) != 0 && log10(table[i * recordSize + b]) > 6)
+                    if ((AbsLog10(table[i * recordSize + b]) > 7 && abs(AbsLog10(float(table[i * recordSize + b]))) < 10 && table[i * recordSize + b] != 0) ||
+                         (table[i * recordSize + b] == 0 && fieldTypes[b] == 'f'))
                         fieldTypes[b] = 'f';
                     else
                         fieldTypes[b] = 'i';
@@ -131,12 +137,18 @@ void DBCViewer::LoadDBCIntoTable(QString file, QString format)
         }
         for (register int b = 1; b < fields; ++b)
             if (fieldTypes[b] == 's')
+            {
+                bool n = true;
                 for (register int i = 0; i < records; ++i)
-                    if (table[i * recordSize + b] > stringsSize)
+                    if (table[i * recordSize + b] > stringsSize || table[i * recordSize + b] < 0)
                     {
                         fieldTypes[b] = 'i';
                         break;
                     }
+                    else if (table[i * recordSize + b] != 0) n = false;
+                if (n)
+                    fieldTypes[b] = 'i';
+             }
         printf("Automatic Detection finished in: %llu ms\n", QDateTime::currentMSecsSinceEpoch() - loadBegin);
     }
 
@@ -292,20 +304,23 @@ void DBCViewer::LoadDB2IntoTable(QString file, QString format)
         fieldTypes= QString(fields, 's');
         fieldTypes[0] = 'n';
 
-        for (register int i = 0; i < 10; ++i)
+        for (register int i = 0; i < ( records > 30 ? 30 : records ); ++i)
         {
             for (register int b = 1; b < fields; ++b)
             {
-                if (table[i * recordSize + b] > 0 &&
-                    table[i * recordSize + b] < stringsSize  &&
-                    *(strings + table[i * recordSize + b] - 1) == 0 &&
-                    *(strings + table[i * recordSize + b]) >= 'A' &&
-                    *(strings + table[i * recordSize + b]) <= 'z' &&
+                if ((
+                    (table[i * recordSize + b] > 0 &&
+                    table[i * recordSize + b] <= stringsSize  &&
+                    *(strings - 1 + table[i * recordSize + b]) == 0 &&
+                    *(strings + table[i * recordSize + b]) >= 32 &&
+                    *(strings + table[i * recordSize + b]) <= 126) ||
+                    table[i * recordSize + b] == 0 ) &&
                     fieldTypes[b] == 's')
                     fieldTypes[b] = 's';
                 else
                 {
-                    if (*(float*)(table + i * recordSize + b) - int(*(float*)(table + i * recordSize + b)) != 0 && log10(table[i * recordSize + b]) > 6)
+                    if ((AbsLog10(table[i * recordSize + b]) > 7 && abs(AbsLog10(float(table[i * recordSize + b]))) < 10 && table[i * recordSize + b] != 0) ||
+                         (table[i * recordSize + b] == 0 && fieldTypes[b] == 'f'))
                         fieldTypes[b] = 'f';
                     else
                         fieldTypes[b] = 'i';
@@ -314,12 +329,18 @@ void DBCViewer::LoadDB2IntoTable(QString file, QString format)
         }
         for (register int b = 1; b < fields; ++b)
             if (fieldTypes[b] == 's')
+            {
+                bool n = true;
                 for (register int i = 0; i < records; ++i)
-                    if (table[i * recordSize + b] > stringsSize)
+                    if (table[i * recordSize + b] > stringsSize || table[i * recordSize + b] < 0 || *(strings - 1 + table[i * recordSize + b]) != 0)
                     {
                         fieldTypes[b] = 'i';
                         break;
                     }
+                    else if (table[i * recordSize + b] != 0) n = false;
+                if (n)
+                    fieldTypes[b] = 'i';
+             }
         printf("Automatic Detection finished in: %llu ms\n", QDateTime::currentMSecsSinceEpoch() - loadBegin);
     }
 
