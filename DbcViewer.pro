@@ -11,8 +11,14 @@ TEMPLATE = app
 
 
 SOURCES += main.cpp\
-        dbcviewer.cpp
+        dbcviewer.cpp \
+    export.cpp \
+    progressbar.cpp
 
-HEADERS  += dbcviewer.h
+HEADERS  += dbcviewer.h \
+    export.h \
+    progressbar.h
 
-FORMS    += dbcviewer.ui
+FORMS    += dbcviewer.ui \
+    export.ui \
+    progressbar.ui

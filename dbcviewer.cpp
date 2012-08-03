@@ -11,6 +11,7 @@ DBCViewer::DBCViewer(QWidget *parent) :
     fileInfo(QApplication::applicationFilePath())
 {
     ui->setupUi(this);
+    progress = new ProgressBar;
     dbcDialog.setLabelText(QFileDialog::LookIn, "Please select DBC file");
     dbcDialog.setDirectory(lastFile);
     dbcDialog.setNameFilter("DBC File (*.dbc)");
@@ -30,6 +31,9 @@ DBCViewer::DBCViewer(QWidget *parent) :
 
 DBCViewer::~DBCViewer()
 {
+    if (exportWindow)
+        delete exportWindow;
+    delete progress;
     delete ui;
 }
 
@@ -85,10 +89,11 @@ QString DBCViewer::DetectFormat(int rows, int cols, int *table, int recordSize, 
 
 void DBCViewer::FillTable(int rows, int cols, int *table, int recordSize, char *strings, int stringsSize)
 {
+    progress->Show(rows, "Filling table");
     int stringFieldError = -1;
     ui->tableWidget->setUpdatesEnabled(false);
     quint64 loadBegin = QDateTime::currentMSecsSinceEpoch();
-    for (register int i = 0; i < rows; ++i)
+    for (register int i = 0; i < rows; )
     {
         for (register int b = 0; b < cols; ++b)
         {
@@ -120,6 +125,7 @@ void DBCViewer::FillTable(int rows, int cols, int *table, int recordSize, char *
             if (created)
                 ui->tableWidget->setItem(i, b, item);
         }
+        progress->UpdateProgress(++i);
     }
     printf("Inserting data into table finished in: %llu ms\n", QDateTime::currentMSecsSinceEpoch() - loadBegin);
     ui->tableWidget->setUpdatesEnabled(true);
@@ -566,15 +572,19 @@ void DBCViewer::on_actionManual_Field_Setup_triggered()
 
 void DBCViewer::on_actionExport_To_SQL_triggered()
 {
+    if (!lastFile.size())
+        return;
+    exportWindow = new Export(this);
+
+    if (exportWindow->exec() != QDialog::Accepted)
+        return;
+
     if (!saveDialog.exec())
         return;
     QString exportFileName = saveDialog.selectedFiles().first();
 
     if (!exportFileName.endsWith(".sql"))
         exportFileName.append(".sql");
-
-    QString tableName = QInputDialog::getText(this, "Set Table name", "Enter table name :");
-
 
     QFile exportFile;
     exportFile.setFileName(exportFileName);
@@ -587,25 +597,74 @@ void DBCViewer::on_actionExport_To_SQL_triggered()
         return;
     }
     QTextStream stream(&exportFile);
-    stream << "INSERT INTO ";
-    stream << "`" << tableName <<"` ";
-    stream << "VALUES\n";
-    for (int i = 0; i < this->ui->tableWidget->rowCount(); ++i)
+    QString tableName = exportWindow->getTableName();
+    if (exportWindow->getCreateTable())
     {
-        stream << '(';
-        for (int b = 0; b < this->ui->tableWidget->columnCount(); ++b)
+        stream << "CREATE TABLE `" << tableName << "` (\n";
+        for (int b = 0; b < this->ui->tableWidget->columnCount(); )
         {
-            stream << "'" << this->ui->tableWidget->item(i, b)->text().replace('\\',"\\\\").replace('\'', "\\'") << "'";
-            if (b != this->ui->tableWidget->columnCount() - 1)
-                stream << ',';
+            switch (fieldTypes[b].toAscii())
+            {
+                case 's': // strings;
+                    stream << "col" << b << " text not null default ''";
+                    break;
+                case 'n': // index
+                    stream << "Id" << " int unsigned not null primary key";
+                    break;
+                case 'i': // ints
+                    stream << "col" << b << " int not null default 0";
+                    break;
+                case 'f': // float
+                    stream << "col" << b << " float not null default 0";
+                    break;
+            }
+            if (++b != this->ui->tableWidget->columnCount())
+                stream << ",\n";
+            else
+                stream << "\n)" << (exportWindow->getExportData() ? ";\n\n\n" : ";");
         }
-        stream << ')';
-        if (i != this->ui->tableWidget->rowCount() - 1)
-            stream << ",\n";
     }
-    stream << ';';
-    exportFile.close();
 
+
+    if (exportWindow->getExportData())
+    {
+        unsigned int totalCount = this->ui->tableWidget->rowCount();
+        unsigned int cursor = 0;
+        progress->Show(totalCount, "Exporting to SQL");
+        while (totalCount)
+        {
+            unsigned int insertCount = this->ui->tableWidget->rowCount();
+            if (!exportWindow->getExportSingleInsert())
+            {
+                insertCount = exportWindow->getRowsPerInsert();
+                if (insertCount > totalCount)
+                    insertCount = totalCount;
+            }
+
+            stream << "INSERT INTO ";
+            stream << "`" << tableName <<"` ";
+            stream << "VALUES\n";
+            for (unsigned int i = 0; i < insertCount; ++cursor)
+            {
+                stream << '(';
+                for (int b = 0; b < this->ui->tableWidget->columnCount(); ++b)
+                {
+                    stream << "'" << this->ui->tableWidget->item(cursor, b)->text().replace('\\',"\\\\").replace('\'', "\\'") << "'";
+                    if (b != this->ui->tableWidget->columnCount() - 1)
+                        stream << ',';
+                }
+                stream << ')';
+                if (++i != insertCount)
+                    stream << ",\n";
+                progress->IncrementProgress();
+            }
+            stream << ';';
+            totalCount -= insertCount;
+            if (totalCount)
+                stream << "\n\n";
+        }
+    }
+    exportFile.close();
 }
 
 void DBCViewer::on_actionAutomatic_field_detection_triggered()

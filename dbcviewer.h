@@ -11,9 +11,13 @@
 #include <QFile>
 #include <QTextStream>
 #include <cmath>
+#include "export.h"
+#include "progressbar.h"
 
 namespace Ui {
     class DBCViewer;
+    class Export;
+    class ProgressBar;
 }
 
 class DBCViewer : public QMainWindow
@@ -61,6 +65,8 @@ private slots:
 
 private:
     Ui::DBCViewer *ui;
+    Export *exportWindow;
+    ProgressBar *progress;
     QString lastFile;
     QString fieldTypes;
     QFile loader;
